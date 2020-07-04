@@ -118,6 +118,7 @@ public class OpenNebulaComputePlugin implements ComputePlugin<CloudUser> {
 		String id = virtualMachine.getId();
 		String name = virtualMachine.getName();
 		String state = virtualMachine.lcmStateStr();
+		String faultMessage = response.getErrorMessage();
 
 		int cpu = Integer.parseInt(virtualMachine.xpath(TEMPLATE_CPU_PATH));
 		int memoryRam = Integer.parseInt(virtualMachine.xpath(TEMPLATE_MEMORY_PATH));
@@ -127,7 +128,7 @@ public class OpenNebulaComputePlugin implements ComputePlugin<CloudUser> {
 		XmlUnmarshaller xmlUnmarshaller = new XmlUnmarshaller(xml);
 		List<String> ipAddresses = xmlUnmarshaller.getContextListOf(NIC_IP_EXPRESSION);
 
-		ComputeInstance computeInstance = new ComputeInstance(id, state, name, cpu, memoryRam, disk, ipAddresses);
+		ComputeInstance computeInstance = new ComputeInstance(id, state, name, cpu, memoryRam, disk, ipAddresses, faultMessage);
 		this.setComputeInstanceNetworks(computeInstance);
 
 		return computeInstance;
