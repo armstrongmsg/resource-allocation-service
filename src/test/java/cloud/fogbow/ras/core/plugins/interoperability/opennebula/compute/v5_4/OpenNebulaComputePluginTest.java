@@ -511,6 +511,7 @@ public class OpenNebulaComputePluginTest extends OpenNebulaBaseTests {
 	public void testDoGetInstance() {
 		// set up
 	    VirtualMachine virtualMachine = Mockito.mock(VirtualMachine.class);
+	    String faultMessage = null;
 	    OneResponse response = Mockito.mock(OneResponse.class);
 
 		Mockito.when(virtualMachine.info()).thenReturn(response);
@@ -521,6 +522,7 @@ public class OpenNebulaComputePluginTest extends OpenNebulaBaseTests {
 		Mockito.when(virtualMachine.xpath(TEMPLATE_MEMORY_PATH)).thenReturn(String.valueOf(this.computeOrder.getRam()));
 		Mockito.when(virtualMachine.xpath(TEMPLATE_DISK_SIZE_PATH)).thenReturn(String.valueOf(this.computeOrder.getDisk()));
 		Mockito.when(response.getMessage()).thenReturn(this.getVirtualMachineResponse());
+		Mockito.when(response.getErrorMessage()).thenReturn(faultMessage);
 
 		Mockito.doNothing().when(this.plugin).setComputeInstanceNetworks(Mockito.any(ComputeInstance.class));
 
@@ -539,7 +541,49 @@ public class OpenNebulaComputePluginTest extends OpenNebulaBaseTests {
 		Mockito.verify(this.plugin, Mockito.times(TestUtils.RUN_ONCE)).setComputeInstanceNetworks(Mockito.any(ComputeInstance.class));
 
 		Assert.assertEquals(this.computeOrder.getDisk() / ONE_GIGABYTE_IN_MEGABYTES, computeInstance.getDisk());
+		Assert.assertNull(computeInstance.getFaultMessage());
 	}
+
+	// test case: when invoking doGetInstance and the virtual machine has an error,
+	// the plugin should mount a ComputeInstance object with the fault message filled.
+	@Test
+	public void testDoGetInstanceWithFaultMessage() {
+		// set up
+		VirtualMachine virtualMachine = Mockito.mock(VirtualMachine.class);
+		String faultMessage = "fault message";
+		OneResponse response = Mockito.mock(OneResponse.class);
+
+		Mockito.when(virtualMachine.info()).thenReturn(response);
+		Mockito.when(virtualMachine.getId()).thenReturn(this.computeOrder.getInstanceId());
+		Mockito.when(virtualMachine.getName()).thenReturn(this.computeOrder.getName());
+		Mockito.when(virtualMachine.lcmStateStr()).thenReturn(OrderState.FULFILLED.toString());
+		Mockito.when(virtualMachine.xpath(TEMPLATE_CPU_PATH)).thenReturn(String.valueOf(this.computeOrder.getvCPU()));
+		Mockito.when(virtualMachine.xpath(TEMPLATE_MEMORY_PATH)).thenReturn(String.valueOf(this.computeOrder.getRam()));
+		Mockito.when(virtualMachine.xpath(TEMPLATE_DISK_SIZE_PATH)).thenReturn(String.valueOf(this.computeOrder.getDisk()));
+		Mockito.when(response.getMessage()).thenReturn(this.getVirtualMachineResponse());
+		Mockito.when(response.getErrorMessage()).thenReturn(faultMessage);
+
+		Mockito.doNothing().when(this.plugin).setComputeInstanceNetworks(Mockito.any(ComputeInstance.class));
+
+		// exercise
+		ComputeInstance computeInstance = this.plugin.doGetInstance(virtualMachine);
+
+		// verify
+		Mockito.verify(virtualMachine, Mockito.times(TestUtils.RUN_ONCE)).info();
+		Mockito.verify(virtualMachine, Mockito.times(TestUtils.RUN_ONCE)).getId();
+		Mockito.verify(virtualMachine, Mockito.times(TestUtils.RUN_ONCE)).getName();
+		Mockito.verify(virtualMachine, Mockito.times(TestUtils.RUN_ONCE)).lcmStateStr();
+		Mockito.verify(virtualMachine, Mockito.times(TestUtils.RUN_ONCE)).xpath(Mockito.eq(TEMPLATE_CPU_PATH));
+		Mockito.verify(virtualMachine, Mockito.times(TestUtils.RUN_ONCE)).xpath(Mockito.eq(TEMPLATE_MEMORY_PATH));
+		Mockito.verify(virtualMachine, Mockito.times(TestUtils.RUN_ONCE)).xpath(Mockito.eq(TEMPLATE_DISK_SIZE_PATH));
+		Mockito.verify(response, Mockito.times(TestUtils.RUN_ONCE)).getMessage();
+		Mockito.verify(this.plugin, Mockito.times(TestUtils.RUN_ONCE)).setComputeInstanceNetworks(Mockito.any(ComputeInstance.class));
+
+		Assert.assertEquals(this.computeOrder.getDisk() / ONE_GIGABYTE_IN_MEGABYTES, computeInstance.getDisk());
+		Assert.assertNotNull(computeInstance.getFaultMessage());
+		Assert.assertEquals(faultMessage, computeInstance.getFaultMessage());
+	}
+
 
 	// test case: when invoking deleteInstance with a valid compute order and cloud user,
 	// the plugin should retrieve the respective vm from ONe and terminate it.
